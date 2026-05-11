@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI心理对话成本测算工具</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
+.app-container{max-width:1400px;margin:0 auto;display:flex;gap:20px}
+.sidebar{width:300px;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:20px;max-height:calc(100vh - 40px);overflow-y:auto;position:sticky;top:20px}
+.sidebar-title{font-size:18px;font-weight:600;color:#333;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #667eea}
+.history-list{display:flex;flex-direction:column;gap:12px}
+.history-item{background:#f8f9fa;border-radius:8px;padding:12px;cursor:pointer;transition:all .3s;border:2px solid transparent}
+.history-item:hover{border-color:#667eea;transform:translateX(4px)}
+.history-item.active{border-color:#667eea;background:#e8ecff}
+.history-date{font-size:12px;color:#888;margin-bottom:4px}
+.history-name{font-size:14px;font-weight:600;color:#333;margin-bottom:4px}
+.history-cost{font-size:16px;color:#667eea;font-weight:700}
+.history-actions{display:flex;gap:8px;margin-top:8px}
+.btn-delete{padding:4px 8px;background:#ff4757;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer}
+.btn-delete:hover{background:#ff3838}
+.no-history{text-align:center;color:#888;padding:20px;font-size:14px}
+.container{flex:1;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:30px;text-align:center}
+.header h1{font-size:28px;margin-bottom:8px}
+.header p{opacity:.9;font-size:14px}
+.content{padding:30px}
+.section{background:#f8f9fa;border-radius:12px;padding:24px;margin-bottom:24px}
+.section-title{font-size:18px;font-weight:600;color:#333;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #667eea}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.form-group label{display:block;font-size:14px;font-weight:500;color:#555;margin-bottom:8px}
+.form-group input,.form-group select{width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;transition:all .3s}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+.form-group .unit{font-size:12px;color:#888;margin-top:4px}
+.result-section{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border-radius:12px;padding:24px;margin-bottom:24px}
+.result-title{font-size:16px;opacity:.9;margin-bottom:16px}
+.result-value{font-size:48px;font-weight:700;margin-bottom:8px}
+.result-subtitle{font-size:14px;opacity:.8}
+.breakdown{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:24px}
+.breakdown-item{background:#fff;border-radius:8px;padding:16px;text-align:center}
+.breakdown-label{font-size:12px;color:#888;margin-bottom:8px}
+.breakdown-value{font-size:24px;font-weight:600;color:#333}
+.breakdown-percent{font-size:12px;color:#667eea;margin-top:4px}
+.btn-calculate{width:100%;padding:16px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:transform .2s}
+.btn-calculate:hover{transform:translateY(-2px);box-shadow:0 8px 16px rgba(102,126,234,.3)}
+.detail-table{width:100%;margin-top:20px;border-collapse:collapse}
+.detail-table th,.detail-table td{padding:12px;text-align:left;border-bottom:1px solid #e0e0e0}
+.detail-table th{background:#f8f9fa;font-weight:600;color:#555}
+.name-input-group{display:flex;gap:12px;margin-bottom:16px}
+.name-input-group input{flex:1;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px}
+.name-input-group input:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+.history-mode-banner{background:#fff3cd;border:2px solid #ffc107;color:#856404;padding:16px 20px;border-radius:8px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.history-mode-banner .banner-text{font-weight:600}
+.btn-new-calc{padding:10px 20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;transition:transform .2s}
+.btn-new-calc:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(102,126,234,.3)}
+.readonly-mode input,.readonly-mode select{background:#f0f0f0;cursor:not-allowed;color:#666}
+.readonly-mode .btn-calculate{display:none}
+.locked-section{position:relative}
+.locked-section input,.locked-section select{background:#f0f0f0;cursor:not-allowed;color:#666;pointer-events:none}
+.lock-badge{display:inline-block;font-size:12px;color:#888;font-weight:400;margin-left:8px;padding:2px 8px;background:#e9ecef;border-radius:4px}
+.admin-entry{position:fixed;bottom:20px;right:20px;width:48px;height:48px;background:rgba(255,255,255,.9);border-radius:50%;box-shadow:0 4px 12px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;transition:transform .2s;z-index:100}
+.admin-entry:hover{transform:scale(1.1);background:#fff}
+.admin-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:200;justify-content:center;align-items:center}
+.admin-modal.show{display:flex}
+.admin-modal-content{background:#fff;border-radius:12px;padding:30px;width:90%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.admin-modal-title{font-size:18px;font-weight:600;color:#333;margin-bottom:20px}
+.admin-modal-input{width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:16px}
+.admin-modal-input:focus{outline:none;border-color:#667eea}
+.admin-modal-actions{display:flex;gap:12px;justify-content:flex-end}
+.admin-btn{padding:10px 20px;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
+.admin-btn-cancel{background:#e9ecef;color:#555}
+.admin-btn-confirm{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff}
+.admin-error{color:#ff4757;font-size:13px;margin-top:-8px;margin-bottom:12px;display:none}
+.admin-mode-banner{background:#d1ecf1;border:2px solid #0c5460;color:#0c5460;padding:12px 20px;border-radius:8px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.admin-mode-banner .banner-text{font-weight:600}
+.btn-exit-admin{padding:8px 16px;background:#0c5460;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
+@media (max-width:1024px){
+.app-container{flex-direction:column}
+.sidebar{width:100%;position:relative;top:0;max-height:400px}
+}
+</style>
+</head>
+<body>
+<div class="app-container">
+<div class="sidebar">
+<div class="sidebar-title">历史测算记录</div>
+<div id="historyList" class="history-list">
+<div class="no-history">暂无历史记录</div>
+</div>
+</div>
+<div class="container">
+<div class="header">
+<h1>AI心理对话成本测算工具</h1>
+<p>快速测算项目年度成本，支持自定义参数和模型选择</p>
+</div>
+<div class="content">
+<div id="adminModeBanner" class="admin-mode-banner" style="display:none;">
+<span class="banner-text">🔧 管理员模式：可修改Token配置、语音配置、其他费用</span>
+<button class="btn-exit-admin" onclick="exitAdminMode()">退出管理员模式</button>
+</div>
+<div id="historyModeBanner" class="history-mode-banner" style="display:none;">
+<span class="banner-text">📋 当前查看历史测算记录（只读模式）</span>
+<button class="btn-new-calc" onclick="newCalculation()">新建测算</button>
+</div>
+<div id="historyResultSection" style="display:none;"></div>
+<div class="section">
+<div class="section-title">项目信息</div>
+<div class="name-input-group">
+<input type="text" id="projectName" placeholder="输入项目名称（选填）">
+</div>
+</div>
+<div class="section">
+<div class="section-title">基础参数</div>
+<div class="form-grid">
+<div class="form-group">
+<label>学生总人数</label>
+<input type="number" id="totalUsers" value="1200000">
+<div class="unit">人</div>
+</div>
+<div class="form-group">
+<label>月活跃率</label>
+<input type="number" id="activeRate" value="10" step="0.1">
+<div class="unit">%</div>
+</div>
+<div class="form-group">
+<label>人均月对话通数</label>
+<input type="number" id="callsPerUser" value="5">
+<div class="unit">通/月</div>
+</div>
+<div class="form-group">
+<label>单次对话轮数</label>
+<input type="number" id="roundsPerCall" value="10">
+<div class="unit">轮</div>
+</div>
+<div class="form-group">
+<label>平均对话时长</label>
+<input type="number" id="avgDuration" value="300">
+<div class="unit">秒</div>
+</div>
+<div class="form-group">
+<label>日均工作时长</label>
+<input type="number" id="workHours" value="4">
+<div class="unit">小时</div>
+</div>
+</div>
+</div>
+<div class="section">
+<div class="section-title">模型配置</div>
+<div class="form-grid">
+<div class="form-group">
+<label>选择模型</label>
+<select id="modelSelect">
+<option value="custom">自定义</option>
+<optgroup label="豆包 Seed 2.0 系列（火山引擎最新）">
+<option value="doubao-seed-2.0-pro-32k">doubao-seed-2.0-pro [0-32k] (输入3.2/输出16)</option>
+<option value="doubao-seed-2.0-pro-128k">doubao-seed-2.0-pro [32-128k] (输入4.8/输出24)</option>
+<option value="doubao-seed-2.0-pro-256k">doubao-seed-2.0-pro [128-256k] (输入9.6/输出48)</option>
+<option value="doubao-seed-2.0-lite-32k">doubao-seed-2.0-lite [0-32k] (输入0.6/输出3.6)</option>
+<option value="doubao-seed-2.0-lite-128k">doubao-seed-2.0-lite [32-128k] (输入0.9/输出5.4)</option>
+<option value="doubao-seed-2.0-lite-256k">doubao-seed-2.0-lite [128-256k] (输入1.8/输出10.8)</option>
+<option value="doubao-seed-2.0-mini-32k">doubao-seed-2.0-mini [0-32k] (输入0.2/输出2.0)</option>
+<option value="doubao-seed-2.0-mini-128k" selected>doubao-seed-2.0-mini [32-128k] (输入0.4/输出4.0)</option>
+<option value="doubao-seed-2.0-mini-256k">doubao-seed-2.0-mini [128-256k] (输入0.8/输出8.0)</option>
+<option value="doubao-seed-2.0-code-32k">doubao-seed-2.0-code [0-32k] (输入3.2/输出16)</option>
+<option value="doubao-seed-2.0-code-128k">doubao-seed-2.0-code [32-128k] (输入4.8/输出24)</option>
+<option value="doubao-seed-2.0-code-256k">doubao-seed-2.0-code [128-256k] (输入9.6/输出48)</option>
+</optgroup>
+<optgroup label="豆包 Seed 1.8 系列">
+<option value="doubao-seed-1.8-short">doubao-seed-1.8 [0-32k,短输出] (输入0.8/输出2.0)</option>
+<option value="doubao-seed-1.8-long">doubao-seed-1.8 [0-32k,长输出] (输入0.8/输出8.0)</option>
+<option value="doubao-seed-1.8-128k">doubao-seed-1.8 [32-128k] (输入1.2/输出16.0)</option>
+<option value="doubao-seed-1.8-256k">doubao-seed-1.8 [128-256k] (输入2.4/输出24.0)</option>
+</optgroup>
+<optgroup label="其他国内模型">
+<option value="qwen-max">通义千问Max (输入20/输出60)</option>
+<option value="qwen-plus">通义千问Plus (输入4/输出12)</option>
+<option value="qwen-turbo">通义千问Turbo (输入2/输出6)</option>
+<option value="deepseek-chat">DeepSeek Chat (输入1/输出2)</option>
+<option value="deepseek-coder">DeepSeek Coder (输入1/输出2)</option>
+<option value="glm4">智谱GLM-4 (输入50/输出50)</option>
+<option value="glm3-turbo">智谱GLM-3 Turbo (输入5/输出5)</option>
+<option value="baichuan2">百川Baichuan2 (输入20/输出20)</option>
+<option value="spark-max">讯飞星火Max (输入36/输出36)</option>
+<option value="spark-pro">讯飞星火Pro (输入8/输出8)</option>
+</optgroup>
+<optgroup label="国际模型">
+<option value="gpt4">GPT-4 (输入30/输出60)</option>
+<option value="gpt35">GPT-3.5 Turbo (输入1.5/输出2)</option>
+<option value="claude-opus">Claude Opus (输入15/输出75)</option>
+<option value="claude-sonnet">Claude Sonnet (输入3/输出15)</option>
+</optgroup>
+</select>
+</div>
+<div class="form-group">
+<label>输入Token单价</label>
+<input type="number" id="inputPrice" value="0.4" step="0.1">
+<div class="unit">元/百万token</div>
+</div>
+<div class="form-group">
+<label>输出Token单价</label>
+<input type="number" id="outputPrice" value="4.0" step="0.1">
+<div class="unit">元/百万token</div>
+</div>
+<div class="form-group">
+<label>缓存系数</label>
+<input type="number" id="cacheRatio" value="0.6" step="0.1">
+<div class="unit">0-1之间，1表示无缓存</div>
+</div>
+</div>
+</div>
+<div class="section locked-section" id="tokenSection">
+<div class="section-title">Token配置<span class="lock-badge">🔒 仅后台可改</span></div>
+<div class="form-grid">
+<div class="form-group">
+<label>单轮输入Token数</label>
+<input type="number" id="inputTokens" value="4250">
+<div class="unit">包含系统提示词+上下文+用户输入</div>
+</div>
+<div class="form-group">
+<label>单轮输出Token数</label>
+<input type="number" id="outputTokens" value="2000">
+<div class="unit">模型回复的token数</div>
+</div>
+</div>
+</div>
+<div class="section locked-section" id="voiceSection">
+<div class="section-title">语音配置<span class="lock-badge">🔒 仅后台可改</span></div>
+<div class="form-grid">
+<div class="form-group">
+<label>语音转写单价</label>
+<input type="number" id="asrPrice" value="300">
+<div class="unit">元/路/月</div>
+</div>
+<div class="form-group">
+<label>语音合成单价</label>
+<input type="number" id="ttsPrice" value="2.6">
+<div class="unit">元/万次</div>
+</div>
+</div>
+</div>
+<div class="section locked-section" id="otherSection">
+<div class="section-title">其他费用<span class="lock-badge">🔒 仅后台可改</span></div>
+<div class="form-grid">
+<div class="form-group">
+<label>知识库费用</label>
+<input type="number" id="knowledgeBaseFee" value="3000">
+<div class="unit">元/月</div>
+</div>
+<div class="form-group">
+<label>垂类模型单价</label>
+<input type="number" id="modelCardPrice" value="6000">
+<div class="unit">元/卡/月</div>
+</div>
+<div class="form-group">
+<label>单卡并发数</label>
+<input type="number" id="concurrentPerCard" value="16">
+<div class="unit">路</div>
+</div>
+<div class="form-group">
+<label>节点数量</label>
+<input type="number" id="nodeCount" value="2">
+<div class="unit">高可用配置</div>
+</div>
+</div>
+</div>
+<button class="btn-calculate" onclick="calculate()">开始测算</button>
+<div id="resultSection" style="display:none;">
+<div class="result-section">
+<div class="result-title">年度总成本</div>
+<div class="result-value" id="totalCost">0</div>
+<div class="result-subtitle">月均成本：<span id="monthlyCost">0</span> 元 | 生均年成本：<span id="perUserCost">0</span> 元</div>
+<div class="breakdown">
+<div class="breakdown-item">
+<div class="breakdown-label">文本对话费用</div>
+<div class="breakdown-value" id="textCost">0</div>
+<div class="breakdown-percent" id="textPercent">0%</div>
+</div>
+<div class="breakdown-item">
+<div class="breakdown-label">语音费用</div>
+<div class="breakdown-value" id="voiceCost">0</div>
+<div class="breakdown-percent" id="voicePercent">0%</div>
+</div>
+<div class="breakdown-item">
+<div class="breakdown-label">知识库费用</div>
+<div class="breakdown-value" id="kbCost">0</div>
+<div class="breakdown-percent" id="kbPercent">0%</div>
+</div>
+<div class="breakdown-item">
+<div class="breakdown-label">垂类模型费用</div>
+<div class="breakdown-value" id="modelCost">0</div>
+<div class="breakdown-percent" id="modelPercent">0%</div>
+</div>
+</div>
+</div>
+<div class="section">
+<div class="section-title">计算明细</div>
+<table class="detail-table">
+<tr><th>项目</th><th>计算公式</th><th>结果</th></tr>
+<tr><td>月活跃人数</td><td id="calc1"></td><td id="result1"></td></tr>
+<tr><td>并发路数</td><td id="calc2"></td><td id="result2"></td></tr>
+<tr><td>月度对话通数</td><td id="calc3"></td><td id="result3"></td></tr>
+<tr><td>月度对话轮数</td><td id="calc4"></td><td id="result4"></td></tr>
+<tr><td>输入Token费用</td><td id="calc5"></td><td id="result5"></td></tr>
+<tr><td>输出Token费用</td><td id="calc6"></td><td id="result6"></td></tr>
+<tr><td>语音合成费用</td><td id="calc7"></td><td id="result7"></td></tr>
+<tr><td>语音转写费用</td><td id="calc8"></td><td id="result8"></td></tr>
+<tr><td>垂类模型卡数</td><td id="calc9"></td><td id="result9"></td></tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="admin-entry" onclick="showAdminModal()" title="后台配置">⚙️</div>
+<div class="admin-modal" id="adminModal">
+<div class="admin-modal-content">
+<div class="admin-modal-title">后台配置入口</div>
+<input type="password" class="admin-modal-input" id="adminPassword" placeholder="请输入管理员密码">
+<div class="admin-error" id="adminError">密码错误，请重试</div>
+<div class="admin-modal-actions">
+<button class="admin-btn admin-btn-cancel" onclick="hideAdminModal()">取消</button>
+<button class="admin-btn admin-btn-confirm" onclick="verifyAdmin()">确认</button>
+</div>
+</div>
+</div>
+<script>
+const modelPrices={
+'doubao-seed-2.0-pro-32k':{input:3.2,output:16},
+'doubao-seed-2.0-pro-128k':{input:4.8,output:24},
+'doubao-seed-2.0-pro-256k':{input:9.6,output:48},
+'doubao-seed-2.0-lite-32k':{input:0.6,output:3.6},
+'doubao-seed-2.0-lite-128k':{input:0.9,output:5.4},
+'doubao-seed-2.0-lite-256k':{input:1.8,output:10.8},
+'doubao-seed-2.0-mini-32k':{input:0.2,output:2.0},
+'doubao-seed-2.0-mini-128k':{input:0.4,output:4.0},
+'doubao-seed-2.0-mini-256k':{input:0.8,output:8.0},
+'doubao-seed-2.0-code-32k':{input:3.2,output:16},
+'doubao-seed-2.0-code-128k':{input:4.8,output:24},
+'doubao-seed-2.0-code-256k':{input:9.6,output:48},
+'doubao-seed-1.8-short':{input:0.8,output:2.0},
+'doubao-seed-1.8-long':{input:0.8,output:8.0},
+'doubao-seed-1.8-128k':{input:1.2,output:16.0},
+'doubao-seed-1.8-256k':{input:2.4,output:24.0},
+'qwen-max':{input:20,output:60},
+'qwen-plus':{input:4,output:12},
+'qwen-turbo':{input:2,output:6},
+'deepseek-chat':{input:1,output:2},
+'deepseek-coder':{input:1,output:2},
+'glm4':{input:50,output:50},
+'glm3-turbo':{input:5,output:5},
+'baichuan2':{input:20,output:20},
+'spark-max':{input:36,output:36},
+'spark-pro':{input:8,output:8},
+'gpt4':{input:30,output:60},
+'gpt35':{input:1.5,output:2},
+'claude-opus':{input:15,output:75},
+'claude-sonnet':{input:3,output:15},
+custom:{input:3.2,output:16}
+};
+let currentHistoryId=null;
+const ADMIN_PASSWORD='admin123';
+
+function showAdminModal(){
+document.getElementById('adminModal').classList.add('show');
+document.getElementById('adminPassword').value='';
+document.getElementById('adminError').style.display='none';
+setTimeout(()=>document.getElementById('adminPassword').focus(),100);
+}
+
+function hideAdminModal(){
+document.getElementById('adminModal').classList.remove('show');
+}
+
+function verifyAdmin(){
+const pwd=document.getElementById('adminPassword').value;
+if(pwd===ADMIN_PASSWORD){
+hideAdminModal();
+enterAdminMode();
+}else{
+document.getElementById('adminError').style.display='block';
+}
+}
+
+function enterAdminMode(){
+document.getElementById('adminModeBanner').style.display='flex';
+document.querySelectorAll('.locked-section').forEach(s=>{
+s.classList.remove('locked-section');
+s.dataset.locked='true';
+});
+window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function exitAdminMode(){
+document.getElementById('adminModeBanner').style.display='none';
+document.querySelectorAll('[data-locked="true"]').forEach(s=>{
+s.classList.add('locked-section');
+delete s.dataset.locked;
+});
+}
+
+document.addEventListener('keydown',function(e){
+if(e.key==='Enter'&&document.getElementById('adminModal').classList.contains('show')){
+verifyAdmin();
+}
+if(e.key==='Escape'&&document.getElementById('adminModal').classList.contains('show')){
+hideAdminModal();
+}
+});
+
+document.getElementById('modelSelect').addEventListener('change',function(){
+const model=this.value;
+const prices=modelPrices[model];
+document.getElementById('inputPrice').value=prices.input;
+document.getElementById('outputPrice').value=prices.output;
+});
+
+function loadHistory(){
+const history=JSON.parse(localStorage.getItem('costHistory')||'[]');
+const historyList=document.getElementById('historyList');
+if(history.length===0){
+historyList.innerHTML='<div class="no-history">暂无历史记录</div>';
+return;
+}
+historyList.innerHTML=history.map((item,index)=>`
+<div class="history-item ${item.id===currentHistoryId?'active':''}" onclick="loadHistoryItem(${index})">
+<div class="history-date">${item.date}</div>
+<div class="history-name">${item.name||'未命名项目'}</div>
+<div class="history-cost">${item.yearlyCost} 万元/年</div>
+<div class="history-actions">
+<button class="btn-delete" onclick="event.stopPropagation();deleteHistory(${index})">删除</button>
+</div>
+</div>
+`).join('');
+}
+
+function saveHistory(data){
+const history=JSON.parse(localStorage.getItem('costHistory')||'[]');
+const newItem={
+id:Date.now(),
+date:new Date().toLocaleString('zh-CN'),
+name:data.projectName||'未命名项目',
+yearlyCost:data.yearlyCost,
+params:data.params,
+results:data.results
+};
+history.unshift(newItem);
+if(history.length>50)history.pop();
+localStorage.setItem('costHistory',JSON.stringify(history));
+currentHistoryId=newItem.id;
+loadHistory();
+}
+
+function loadHistoryItem(index){
+const history=JSON.parse(localStorage.getItem('costHistory')||'[]');
+const item=history[index];
+currentHistoryId=item.id;
+document.getElementById('projectName').value=item.name;
+const params=item.params;
+Object.keys(params).forEach(key=>{
+const el=document.getElementById(key);
+if(el){
+if(key==='activeRate'){
+el.value=(params[key]*100).toFixed(1);
+}else{
+el.value=params[key];
+}
+}
+});
+document.querySelector('.content').classList.add('readonly-mode');
+document.getElementById('historyModeBanner').style.display='flex';
+document.querySelectorAll('.content input, .content select').forEach(el=>{
+if(el.id!=='projectName')el.disabled=true;
+else el.disabled=true;
+});
+const results=item.results;
+renderHistoryResult(item);
+document.getElementById('resultSection').style.display='none';
+loadHistory();
+window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderHistoryResult(item){
+const r=item.results;
+const p=item.params;
+const knowledgeBaseFee=p.knowledgeBaseFee;
+const textPercent=(r.textCostMonthly/r.monthlyCostTotal*100).toFixed(1);
+const voicePercent=(r.voiceCostMonthly/r.monthlyCostTotal*100).toFixed(1);
+const kbPercent=(knowledgeBaseFee/r.monthlyCostTotal*100).toFixed(1);
+const modelPercent=(r.modelCostMonthly/r.monthlyCostTotal*100).toFixed(1);
+const modelLabel=document.querySelector(`#modelSelect option[value="${p.modelSelect}"]`);
+const modelText=modelLabel?modelLabel.textContent:p.modelSelect;
+const html=`
+<div class="result-section">
+<div class="result-title">${item.name} - 年度总成本</div>
+<div class="result-value">${(r.yearlyCost/10000).toFixed(2)} 万元</div>
+<div class="result-subtitle">测算时间：${item.date} | 月均成本：${r.monthlyCostTotal.toFixed(2)} 元 | 生均年成本：${r.perUserYearlyCost.toFixed(2)} 元</div>
+<div class="breakdown">
+<div class="breakdown-item">
+<div class="breakdown-label">文本对话费用</div>
+<div class="breakdown-value">${(r.textCostMonthly*12/10000).toFixed(2)} 万</div>
+<div class="breakdown-percent">${textPercent}%</div>
+</div>
+<div class="breakdown-item">
+<div class="breakdown-label">语音费用</div>
+<div class="breakdown-value">${(r.voiceCostMonthly*12/10000).toFixed(2)} 万</div>
+<div class="breakdown-percent">${voicePercent}%</div>
+</div>
+<div class="breakdown-item">
+<div class="breakdown-label">知识库费用</div>
+<div class="breakdown-value">${(knowledgeBaseFee*12/10000).toFixed(2)} 万</div>
+<div class="breakdown-percent">${kbPercent}%</div>
+</div>
+<div class="breakdown-item">
+<div class="breakdown-label">垂类模型费用</div>
+<div class="breakdown-value">${(r.modelCostMonthly*12/10000).toFixed(2)} 万</div>
+<div class="breakdown-percent">${modelPercent}%</div>
+</div>
+</div>
+</div>
+<div class="section">
+<div class="section-title">计算明细</div>
+<table class="detail-table">
+<tr><th>项目</th><th>计算公式</th><th>结果</th></tr>
+<tr><td>月活跃人数</td><td>${p.totalUsers.toLocaleString()} × ${(p.activeRate*100).toFixed(1)}%</td><td>${r.activeUsers.toLocaleString()} 人</td></tr>
+<tr><td>并发路数</td><td>${p.totalUsers.toLocaleString()} × ${(p.activeRate*100).toFixed(1)}% / (${p.workHours} × 3600 × 30) × ${p.avgDuration}</td><td>${Math.ceil(r.concurrent)} 路</td></tr>
+<tr><td>月度对话通数</td><td>${r.activeUsers.toLocaleString()} × ${p.callsPerUser}</td><td>${r.monthlyCalls.toLocaleString()} 通</td></tr>
+<tr><td>月度对话轮数</td><td>${r.monthlyCalls.toLocaleString()} × ${p.roundsPerCall}</td><td>${r.monthlyRounds.toLocaleString()} 轮</td></tr>
+<tr><td>输入Token费用</td><td>${p.inputTokens} × ${r.monthlyRounds.toLocaleString()} × ${p.cacheRatio} / 1000000 × ${p.inputPrice}</td><td>${r.inputCost.toFixed(2)} 元</td></tr>
+<tr><td>输出Token费用</td><td>${p.outputTokens} × ${r.monthlyRounds.toLocaleString()} / 1000000 × ${p.outputPrice}</td><td>${r.outputCost.toFixed(2)} 元</td></tr>
+<tr><td>语音合成费用</td><td>${p.ttsPrice} × ${r.monthlyRounds.toLocaleString()} / 10000</td><td>${r.ttsCost.toFixed(2)} 元</td></tr>
+<tr><td>语音转写费用</td><td>${Math.ceil(r.concurrent)} × ${p.asrPrice}</td><td>${r.asrCost.toFixed(2)} 元</td></tr>
+<tr><td>垂类模型卡数</td><td>ceil(${r.concurrent.toFixed(2)} / ${p.concurrentPerCard}) × ${p.nodeCount}</td><td>${r.cardsNeeded} 卡</td></tr>
+</table>
+</div>`;
+document.getElementById('historyResultSection').innerHTML=html;
+document.getElementById('historyResultSection').style.display='block';
+}
+
+function newCalculation(){
+currentHistoryId=null;
+document.querySelector('.content').classList.remove('readonly-mode');
+document.getElementById('historyModeBanner').style.display='none';
+document.getElementById('historyResultSection').style.display='none';
+document.getElementById('historyResultSection').innerHTML='';
+document.querySelectorAll('.content input, .content select').forEach(el=>{
+el.disabled=false;
+});
+document.getElementById('resultSection').style.display='none';
+loadHistory();
+window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function deleteHistory(index){
+if(!confirm('确定要删除这条记录吗？'))return;
+const history=JSON.parse(localStorage.getItem('costHistory')||'[]');
+history.splice(index,1);
+localStorage.setItem('costHistory',JSON.stringify(history));
+loadHistory();
+}
+
+function calculate(){
+document.getElementById('historyResultSection').style.display='none';
+document.getElementById('historyResultSection').innerHTML='';
+const params={
+totalUsers:parseFloat(document.getElementById('totalUsers').value),
+activeRate:parseFloat(document.getElementById('activeRate').value)/100,
+callsPerUser:parseFloat(document.getElementById('callsPerUser').value),
+roundsPerCall:parseFloat(document.getElementById('roundsPerCall').value),
+avgDuration:parseFloat(document.getElementById('avgDuration').value),
+workHours:parseFloat(document.getElementById('workHours').value),
+inputPrice:parseFloat(document.getElementById('inputPrice').value),
+outputPrice:parseFloat(document.getElementById('outputPrice').value),
+cacheRatio:parseFloat(document.getElementById('cacheRatio').value),
+inputTokens:parseFloat(document.getElementById('inputTokens').value),
+outputTokens:parseFloat(document.getElementById('outputTokens').value),
+asrPrice:parseFloat(document.getElementById('asrPrice').value),
+ttsPrice:parseFloat(document.getElementById('ttsPrice').value),
+knowledgeBaseFee:parseFloat(document.getElementById('knowledgeBaseFee').value),
+modelCardPrice:parseFloat(document.getElementById('modelCardPrice').value),
+concurrentPerCard:parseFloat(document.getElementById('concurrentPerCard').value),
+nodeCount:parseFloat(document.getElementById('nodeCount').value),
+modelSelect:document.getElementById('modelSelect').value
+};
+
+const activeUsers=params.totalUsers*params.activeRate;
+const concurrent=(params.totalUsers*params.activeRate/(params.workHours*3600*30))*params.avgDuration;
+const monthlyCalls=activeUsers*params.callsPerUser;
+const monthlyRounds=monthlyCalls*params.roundsPerCall;
+const inputCost=(params.inputTokens*monthlyRounds*params.cacheRatio/1000000)*params.inputPrice;
+const outputCost=(params.outputTokens*monthlyRounds/1000000)*params.outputPrice;
+const textCostMonthly=inputCost+outputCost;
+const ttsCost=params.ttsPrice*(monthlyRounds/10000);
+const asrCost=Math.ceil(concurrent)*params.asrPrice;
+const voiceCostMonthly=ttsCost+asrCost;
+const cardsNeeded=Math.ceil(concurrent/params.concurrentPerCard)*params.nodeCount;
+const modelCostMonthly=cardsNeeded*params.modelCardPrice;
+const monthlyCostTotal=textCostMonthly+voiceCostMonthly+params.knowledgeBaseFee+modelCostMonthly;
+const yearlyCost=monthlyCostTotal*12;
+const perUserYearlyCost=yearlyCost/params.totalUsers;
+
+const results={
+activeUsers,concurrent,monthlyCalls,monthlyRounds,
+inputCost,outputCost,textCostMonthly,
+ttsCost,asrCost,voiceCostMonthly,
+cardsNeeded,modelCostMonthly,
+monthlyCostTotal,yearlyCost,perUserYearlyCost
+};
+
+displayResults(results);
+
+saveHistory({
+projectName:document.getElementById('projectName').value,
+yearlyCost:(yearlyCost/10000).toFixed(2),
+params:params,
+results:results
+});
+}
+
+function displayResults(r){
+document.getElementById('resultSection').style.display='block';
+document.getElementById('totalCost').textContent=(r.yearlyCost/10000).toFixed(2)+' 万元';
+document.getElementById('monthlyCost').textContent=r.monthlyCostTotal.toFixed(2);
+document.getElementById('perUserCost').textContent=r.perUserYearlyCost.toFixed(2);
+document.getElementById('textCost').textContent=(r.textCostMonthly*12/10000).toFixed(2)+' 万';
+document.getElementById('voiceCost').textContent=(r.voiceCostMonthly*12/10000).toFixed(2)+' 万';
+document.getElementById('kbCost').textContent=(parseFloat(document.getElementById('knowledgeBaseFee').value)*12/10000).toFixed(2)+' 万';
+document.getElementById('modelCost').textContent=(r.modelCostMonthly*12/10000).toFixed(2)+' 万';
+const textPercent=(r.textCostMonthly/r.monthlyCostTotal*100).toFixed(1);
+const voicePercent=(r.voiceCostMonthly/r.monthlyCostTotal*100).toFixed(1);
+const kbPercent=(parseFloat(document.getElementById('knowledgeBaseFee').value)/r.monthlyCostTotal*100).toFixed(1);
+const modelPercent=(r.modelCostMonthly/r.monthlyCostTotal*100).toFixed(1);
+document.getElementById('textPercent').textContent=textPercent+'%';
+document.getElementById('voicePercent').textContent=voicePercent+'%';
+document.getElementById('kbPercent').textContent=kbPercent+'%';
+document.getElementById('modelPercent').textContent=modelPercent+'%';
+document.getElementById('calc1').textContent=parseFloat(document.getElementById('totalUsers').value).toLocaleString()+' × '+(parseFloat(document.getElementById('activeRate').value)).toFixed(1)+'%';
+document.getElementById('result1').textContent=r.activeUsers.toLocaleString()+' 人';
+document.getElementById('calc2').textContent=parseFloat(document.getElementById('totalUsers').value).toLocaleString()+' × '+(parseFloat(document.getElementById('activeRate').value)).toFixed(1)+'% / ('+document.getElementById('workHours').value+' × 3600 × 30) × '+document.getElementById('avgDuration').value;
+document.getElementById('result2').textContent=Math.ceil(r.concurrent)+' 路';
+document.getElementById('calc3').textContent=r.activeUsers.toLocaleString()+' × '+document.getElementById('callsPerUser').value;
+document.getElementById('result3').textContent=r.monthlyCalls.toLocaleString()+' 通';
+document.getElementById('calc4').textContent=r.monthlyCalls.toLocaleString()+' × '+document.getElementById('roundsPerCall').value;
+document.getElementById('result4').textContent=r.monthlyRounds.toLocaleString()+' 轮';
+document.getElementById('calc5').textContent=document.getElementById('inputTokens').value+' × '+r.monthlyRounds.toLocaleString()+' × '+document.getElementById('cacheRatio').value+' / 1000000 × '+document.getElementById('inputPrice').value;
+document.getElementById('result5').textContent=r.inputCost.toFixed(2)+' 元';
+document.getElementById('calc6').textContent=document.getElementById('outputTokens').value+' × '+r.monthlyRounds.toLocaleString()+' / 1000000 × '+document.getElementById('outputPrice').value;
+document.getElementById('result6').textContent=r.outputCost.toFixed(2)+' 元';
+document.getElementById('calc7').textContent=document.getElementById('ttsPrice').value+' × '+r.monthlyRounds.toLocaleString()+' / 10000';
+document.getElementById('result7').textContent=r.ttsCost.toFixed(2)+' 元';
+document.getElementById('calc8').textContent=Math.ceil(r.concurrent)+' × '+document.getElementById('asrPrice').value;
+document.getElementById('result8').textContent=r.asrCost.toFixed(2)+' 元';
+document.getElementById('calc9').textContent='ceil('+r.concurrent.toFixed(2)+' / '+document.getElementById('concurrentPerCard').value+') × '+document.getElementById('nodeCount').value;
+document.getElementById('result9').textContent=r.cardsNeeded+' 卡';
+document.getElementById('resultSection').scrollIntoView({behavior:'smooth'});
+}
+
+loadHistory();
+</script>
+</body>
+</html>
