@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI心理对话成本测算工具</title>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-XXXXXXXXXX');
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
@@ -383,6 +391,14 @@ document.getElementById('adminError').style.display='block';
 }
 
 function enterAdminMode(){
+// Google Analytics 事件追踪：进入管理员模式
+if(typeof gtag !== 'undefined'){
+gtag('event', 'admin_login', {
+'event_category': 'admin',
+'event_label': 'enter_admin_mode'
+});
+}
+
 document.getElementById('adminModeBanner').style.display='flex';
 document.querySelectorAll('.locked-section').forEach(s=>{
 s.classList.remove('locked-section');
@@ -455,6 +471,16 @@ function loadHistoryItem(index){
 const history=JSON.parse(localStorage.getItem('costHistory')||'[]');
 const item=history[index];
 currentHistoryId=item.id;
+
+// Google Analytics 事件追踪：查看历史记录
+if(typeof gtag !== 'undefined'){
+gtag('event', 'view_history', {
+'event_category': 'history',
+'event_label': item.name||'未命名项目',
+'value': parseFloat(item.yearlyCost)
+});
+}
+
 document.getElementById('projectName').value=item.name;
 const params=item.params;
 Object.keys(params).forEach(key=>{
@@ -608,6 +634,17 @@ monthlyCostTotal,yearlyCost,perUserYearlyCost
 };
 
 displayResults(results);
+
+// Google Analytics 事件追踪：记录测算操作
+if(typeof gtag !== 'undefined'){
+gtag('event', 'cost_calculation', {
+'event_category': 'calculation',
+'event_label': params.modelSelect,
+'value': Math.round(yearlyCost/10000),
+'total_users': params.totalUsers,
+'model': params.modelSelect
+});
+}
 
 saveHistory({
 projectName:document.getElementById('projectName').value,
